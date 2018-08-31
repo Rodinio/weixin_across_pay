@@ -1,0 +1,114 @@
+<?php
+
+namespace Home\Controller;
+
+use Think\Controller;
+
+class YipayController extends Controller
+{
+
+    //yiliang微信号的支付页面
+    public function showindex()
+    {
+        if (IS_POST) {
+            $orderNo = base64_decode(I('post.orderNo'));            //订单号
+            $paymentFee = (int)base64_decode(I('post.paymentFee')); //金额
+            $url = URLdecode(I('post.redirectUrl'));                //地址
+            if ($orderNo && $paymentFee) {
+                session('orderNo', $orderNo);
+                session('paymentFee', $paymentFee);
+                session('redirectUrl', $url);
+                $this->getcode();
+                exit();
+            }
+
+        }
+
+    }
+
+
+    //用户的openid 获取反给前台页面
+    public function getcode()
+    {
+        //判断是在微信里面打开
+        if (strpos($_SERVER['HTTP_USER_AGENT'], 'MicroMessenger') == true) {
+            //配置参数的数组
+            $CONF = array(
+                '__APPID__' => '*****',
+                '__SERECT__' => '*****',
+                '__CALL_URL__' => 'http://east.51tsbx.com/Home/YiLiang/getcode' //当前页地址
+            );
+
+            //没有传递code的情况下，先登录一下
+            if (!isset($_GET['code']) || empty($_GET['code'])) {
+                $getCodeUrl = "https://open.weixin.qq.com/connect/oauth2/authorize" .
+                    "?appid=" . $CONF['__APPID__'] .
+                    "&redirect_uri=" . $CONF['__CALL_URL__'] .
+                    "&response_type=code" .
+                    "&scope=snsapi_base" . #!!!scope设置为snsapi_base !!!
+                    "&state=1";
+                //跳转微信获取code值,去登陆
+                header('Location:' . $getCodeUrl);
+                exit;
+            }
+            $code = trim($_GET['code']);
+            $getIndex = 'http://east.51tsbx.com/Home/YiLiang/Index/';
+            if ($code !== session('code')) {
+                //使用code，拼凑链接获取用户openid
+                $getTokenUrl = "https://api.weixin.qq.com/sns/oauth2/access_token" .
+                    "?appid={$CONF['__APPID__']}" .
+                    "&secret={$CONF['__SERECT__']}" .
+                    "&code={$code}" .
+                    "&grant_type=authorization_code";
+
+                $result = $this->getJson($getTokenUrl);     //curl get请求函数请自行百度
+                $result = json_decode($result, true); //json转数组
+
+                //拿到openid,下面就可以继续调起支付啦
+                session('code', $code);
+                session('openid', $result['openid']);
+                header('Location:' . $getIndex);
+
+            } else {
+                header('Location:' . $getIndex);
+            }
+        } else {
+            $this->codebug();
+        }
+    }
+
+    //地址栏传参请求页面 展示订单信息前台
+    public function Index()
+    {
+        $openid = session('openid');
+        $orderNo = session('orderNo');
+        $paymentFee = session('paymentFee');
+        $redirectUrl = session('redirectUrl');
+
+        $this->assign('openid', $openid);
+        $this->assign('orderNo', $orderNo);
+        $this->assign('paymentFee', $paymentFee / 100);
+        $this->assign('redirectUrl', $redirectUrl);
+        $this->display('showindex');
+    }
+
+    //不在微信中打开 提示在微信中打开页面
+    public function codebug()
+    {
+        $this->display('codebug');
+    }
+
+    function getJson($url)
+    {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        $output = curl_exec($ch);
+        curl_close($ch);
+        return $output;
+    }
+
+
+}
