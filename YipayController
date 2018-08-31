@@ -7,7 +7,7 @@ use Think\Controller;
 class YipayController extends Controller
 {
 
-    //yiliang微信号的支付页面
+    //yi微信号的支付页面
     public function showindex()
     {
         if (IS_POST) {
