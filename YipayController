@@ -36,7 +36,7 @@ class YipayController extends Controller
             $CONF = array(
                 '__APPID__' => '*****',
                 '__SERECT__' => '*****',
-                '__CALL_URL__' => 'http://east.51tsbx.com/Home/YiLiang/getcode' //当前页地址
+                '__CALL_URL__' => 'http://*****/***/***/getcode' //当前页地址
             );
 
             //没有传递code的情况下，先登录一下
